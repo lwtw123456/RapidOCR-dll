@@ -101,7 +101,7 @@ your_app/
 - optionsJson 需为 UTF-8 编码
 - 图片路径接口使用 wchar_t
 - 返回 JSON 为 UTF-8 字符串
-- 调用示例见： python/python_api.py
+- 调用示例见： `python/python_api.py`
 
 ------------------------------------------------------------------------
 
