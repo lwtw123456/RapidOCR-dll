@@ -71,12 +71,12 @@ RapidOCR.dll
 
 1. 准备目录结构：
 
-    ├──your_app/
-       ├──RapidOCR.dll
-       ├── models/
-          ├── ch_PP-OCRv5_mobile_det.onnx
-          ├── ch_ppocr_mobile_v2.0_cls_infer.onnx
-          └── ch_PP-OCRv5_rec_mobile_infer.onnx
+your_app/
+├── RapidOCR.dll
+├── models/
+│   ├── ch_PP-OCRv5_mobile_det.onnx
+│   ├── ch_ppocr_mobile_v2.0_cls_infer.onnx
+│   └── ch_PP-OCRv5_rec_mobile_infer.onnx
 
 2. 在你的程序中加载 DLL，并调用接口：
 
