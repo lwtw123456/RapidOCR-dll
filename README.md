@@ -72,13 +72,15 @@ your_app/
 
 ### 调用流程
 
+```
 加载 DLL
   ↓
 调用 OCR 接口
   ↓
 获取 JSON 结果
   ↓
-（可选）调用 RapidOcrJsonGetLineText 获取纯文本
+（可选）调用 RapidOcrJsonGetLineText 从JSON中获取纯文本
+```
 
 ### 注意事项
 
