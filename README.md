@@ -92,7 +92,9 @@ your_app/
 
 ## 🚀 一键构建
 
-如果你想要自行编译，请先前往 **Releases 页面** 下载 lib.7z，解压到项目的 `third_party` 目录下，然后再运行：
+如果你想要自行编译，请先前往 **Releases 页面** 下载 lib.7z，解压到项目的 `third_party` 目录下。
+或者你也可以自行编译 OpenCV 和 ONNXRuntime，并按约定放入 third_party 目录。
+然后再运行：
 
 ``` bash
 build_release.bat
