@@ -2,8 +2,7 @@
 
 > 轻量级 OCR DLL 封装，基于最新 RapidOCR 核心实现
 
-由于 [RapidOcrOnnx](https://github.com/RapidAI/RapidOcrOnnx) 长期未更新，本项目基于 [RapidOCR](https://github.com/RapidAI/RapidOCR) 最新版本（v3.7.0）  
-将核心逻辑重写为 **C++ 实现**，并在此基础上进行了性能优化。
+由于 [RapidOcrOnnx](https://github.com/RapidAI/RapidOcrOnnx) 长期未更新，本项目基于 [RapidOCR](https://github.com/RapidAI/RapidOCR) 最新版本（v3.7.0）将核心逻辑重写为 **C++ 实现**，并在此基础上进行了性能优化。
 
 项目以 **DLL 形式提供统一接口**，通过 JSON 进行参数输入与结果输出。
 
