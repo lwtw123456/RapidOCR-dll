@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
-#include <sstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <opencv2/imgproc.hpp>
 
@@ -21,16 +22,31 @@ inline float RoundScore5(float value) {
 
 std::vector<std::string> SplitLines(const std::string& raw) {
     std::vector<std::string> out;
-    std::stringstream ss(raw);
-    std::string line;
-    while (std::getline(ss, line)) {
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = raw.find('\n', start)) != std::string::npos) {
+        size_t len = end - start;
+        
+        std::string line = raw.substr(start, len);
+        
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
+        
         if (!line.empty()) {
-            out.push_back(line);
+            out.push_back(std::move(line));
         }
+        
+        start = end + 1;
     }
+
+    if (start < raw.size()) {
+        std::string line = raw.substr(start);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty()) out.push_back(std::move(line));
+    }
+
     return out;
 }
 
