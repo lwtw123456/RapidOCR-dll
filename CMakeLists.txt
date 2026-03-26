@@ -113,7 +113,6 @@ set(RAPIDOCR_SOURCES
 
 set(RAPIDOCR_3P_HEADERS
     ${RAPIDOCR_3P_DIR}/clipper/clipper.hpp
-    ${RAPIDOCR_3P_DIR}/json/nlohmann_json.hpp
     ${STB_INCLUDE_DIR}/stb_image.h
 )
 
@@ -129,7 +128,6 @@ target_include_directories(rapidocr
     PRIVATE
         ${RAPIDOCR_INCLUDE_DIR}
         ${RAPIDOCR_3P_DIR}/clipper
-        ${RAPIDOCR_3P_DIR}/json
         ${STB_INCLUDE_DIR}
         ${OPENCV_INCLUDE_DIR}
         ${ONNXRUNTIME_INCLUDE_DIR}
@@ -157,6 +155,7 @@ target_compile_options(rapidocr
         /wd4458
         /wd4702
         /Gy
+		$<$<CONFIG:Release>:/GR->
 )
 
 target_link_options(rapidocr
