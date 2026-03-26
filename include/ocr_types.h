@@ -1,6 +1,7 @@
 #ifndef RAPIDOCR_OCR_TYPES_H_
 #define RAPIDOCR_OCR_TYPES_H_
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,7 @@ struct ScaleParam {
 };
 
 struct TextBox {
-    std::vector<cv::Point> boxPoints;
+    std::array<cv::Point, 4> boxPoints{};
     float score = 0.0f;
 };
 
@@ -33,7 +34,7 @@ struct TextLine {
 };
 
 struct TextBlock {
-    std::vector<cv::Point> boxPoints;
+    std::array<cv::Point, 4> boxPoints{};
     float boxScore = 0.0f;
     int angleIndex = -1;
     float angleScore = 0.0f;
