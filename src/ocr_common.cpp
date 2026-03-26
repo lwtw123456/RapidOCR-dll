@@ -72,7 +72,7 @@ bool ComparePointX(const cv::Point2f& a, const cv::Point2f& b) {
     return a.x < b.x;
 }
 
-float GetContourArea(const std::vector<cv::Point2f>& box, float unclipRatio) {
+float GetContourArea(const std::array<cv::Point2f, 4>& box, float unclipRatio) {
     const std::size_t size = box.size();
     float area = 0.0f;
     float perimeter = 0.0f;
@@ -223,9 +223,6 @@ int GetThickness(const cv::Mat& image) {
 void DrawTextBoxes(cv::Mat& image, const std::vector<TextBox>& textBoxes, int thickness) {
     const cv::Scalar color(0, 0, 255);
     for (const TextBox& textBox : textBoxes) {
-        if (textBox.boxPoints.size() != 4) {
-            continue;
-        }
         for (int i = 0; i < 4; ++i) {
             cv::line(image, textBox.boxPoints[i], textBox.boxPoints[(i + 1) % 4], color, thickness);
         }
@@ -239,21 +236,17 @@ cv::Mat Rotate180(const cv::Mat& src) {
     return out;
 }
 
-cv::Mat GetRotateCropImage(const cv::Mat& src, const std::vector<cv::Point>& box) {
-    if (box.size() != 4) {
-        throw std::invalid_argument("text box must contain exactly 4 points");
-    }
-
+cv::Mat GetRotateCropImage(const cv::Mat& src, const std::array<cv::Point, 4>& box) {
     int minX = box[0].x, maxX = box[0].x;
     int minY = box[0].y, maxY = box[0].y;
-    
+
     for (int i = 1; i < 4; ++i) {
         minX = std::min(minX, box[i].x);
         maxX = std::max(maxX, box[i].x);
         minY = std::min(minY, box[i].y);
         maxY = std::max(maxY, box[i].y);
     }
-    
+
     minX = std::max(0, minX);
     maxX = std::min(src.cols - 1, maxX);
     minY = std::max(0, minY);
@@ -262,30 +255,38 @@ cv::Mat GetRotateCropImage(const cv::Mat& src, const std::vector<cv::Point>& box
     if (maxX <= minX || maxY <= minY) return cv::Mat();
 
     cv::Mat cropped = src(cv::Rect(minX, minY, maxX - minX + 1, maxY - minY + 1)).clone();
-    
+
     cv::Point2f srcPts[4], dst[4];
     for (int i = 0; i < 4; ++i) {
-        srcPts[i] = cv::Point2f(box[i].x - minX, box[i].y - minY);
+        srcPts[i] = cv::Point2f(
+            static_cast<float>(box[i].x - minX),
+            static_cast<float>(box[i].y - minY));
     }
 
     const float dx01 = srcPts[0].x - srcPts[1].x;
     const float dy01 = srcPts[0].y - srcPts[1].y;
     const float dx03 = srcPts[0].x - srcPts[3].x;
     const float dy03 = srcPts[0].y - srcPts[3].y;
-    
+
     const int cropWidth = static_cast<int>(std::sqrt(dx01 * dx01 + dy01 * dy01));
     const int cropHeight = static_cast<int>(std::sqrt(dx03 * dx03 + dy03 * dy03));
 
     if (cropWidth <= 0 || cropHeight <= 0) return cv::Mat();
 
     dst[0] = cv::Point2f(0.0f, 0.0f);
-    dst[1] = cv::Point2f(cropWidth, 0.0f);
-    dst[2] = cv::Point2f(cropWidth, cropHeight);
-    dst[3] = cv::Point2f(0.0f, cropHeight);
+    dst[1] = cv::Point2f(static_cast<float>(cropWidth), 0.0f);
+    dst[2] = cv::Point2f(static_cast<float>(cropWidth), static_cast<float>(cropHeight));
+    dst[3] = cv::Point2f(0.0f, static_cast<float>(cropHeight));
 
     cv::Mat transform = cv::getPerspectiveTransform(srcPts, dst);
     cv::Mat partImage;
-    cv::warpPerspective(cropped, partImage, transform, cv::Size(cropWidth, cropHeight), cv::INTER_CUBIC, cv::BORDER_REPLICATE);
+    cv::warpPerspective(
+        cropped,
+        partImage,
+        transform,
+        cv::Size(cropWidth, cropHeight),
+        cv::INTER_CUBIC,
+        cv::BORDER_REPLICATE);
 
     if (partImage.rows >= partImage.cols * 1.5f) {
         cv::Mat rotated;
@@ -310,7 +311,7 @@ cv::Mat FitToSize(const cv::Mat& src, int dstWidth, int dstHeight) {
     return fitted;
 }
 
-std::vector<cv::Point2f> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxSideLen) {
+std::array<cv::Point2f, 4> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxSideLen) {
     maxSideLen = std::min(boxRect.size.width, boxRect.size.height);
 
     std::vector<cv::Point2f> boxPoints = GetBox(boxRect);
@@ -320,6 +321,7 @@ std::vector<cv::Point2f> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxS
     int index2 = 0;
     int index3 = 0;
     int index4 = 0;
+
     if (boxPoints[1].y > boxPoints[0].y) {
         index1 = 0;
         index4 = 1;
@@ -327,6 +329,7 @@ std::vector<cv::Point2f> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxS
         index1 = 1;
         index4 = 0;
     }
+
     if (boxPoints[3].y > boxPoints[2].y) {
         index2 = 2;
         index3 = 3;
@@ -335,15 +338,15 @@ std::vector<cv::Point2f> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxS
         index3 = 2;
     }
 
-    std::vector<cv::Point2f> minBox(4);
-    minBox[0] = boxPoints[index1];
-    minBox[1] = boxPoints[index2];
-    minBox[2] = boxPoints[index3];
-    minBox[3] = boxPoints[index4];
-    return minBox;
+    return {
+        boxPoints[index1],
+        boxPoints[index2],
+        boxPoints[index3],
+        boxPoints[index4]
+    };
 }
 
-float BoxScoreFast(const std::vector<cv::Point2f>& boxes, const cv::Mat& pred) {
+float BoxScoreFast(const std::array<cv::Point2f, 4>& boxes, const cv::Mat& pred) {
     const int width = pred.cols;
     const int height = pred.rows;
     const float arrayX[4] = {boxes[0].x, boxes[1].x, boxes[2].x, boxes[3].x};
@@ -410,7 +413,7 @@ float BoxScoreSlow(const std::vector<cv::Point>& contour, const cv::Mat& pred) {
     return static_cast<float>(cv::mean(croppedImg, mask)[0]);
 }
 
-cv::RotatedRect Unclip(const std::vector<cv::Point2f>& box, float unclipRatio) {
+cv::RotatedRect Unclip(const std::array<cv::Point2f, 4>& box, float unclipRatio) {
     const float distance = GetContourArea(box, unclipRatio);
     constexpr double kClipperScale = 1024.0;
 
