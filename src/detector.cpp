@@ -1,6 +1,7 @@
 #include "detector.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
@@ -15,12 +16,13 @@ namespace {
 
 constexpr int kBoxSortYThreshold = 10;
 
-std::vector<cv::Point2f> OrderPointsClockwise(const std::vector<cv::Point>& pts) {
-    std::vector<cv::Point2f> points;
-    points.reserve(pts.size());
-    for (const auto& p : pts) {
-        points.emplace_back(static_cast<float>(p.x), static_cast<float>(p.y));
-    }
+std::array<cv::Point2f, 4> OrderPointsClockwise(const std::array<cv::Point, 4>& pts) {
+    std::array<cv::Point2f, 4> points{{
+        cv::Point2f(static_cast<float>(pts[0].x), static_cast<float>(pts[0].y)),
+        cv::Point2f(static_cast<float>(pts[1].x), static_cast<float>(pts[1].y)),
+        cv::Point2f(static_cast<float>(pts[2].x), static_cast<float>(pts[2].y)),
+        cv::Point2f(static_cast<float>(pts[3].x), static_cast<float>(pts[3].y))
+    }};
 
     std::sort(points.begin(), points.end(), [](const cv::Point2f& a, const cv::Point2f& b) {
         if (a.x != b.x) {
@@ -29,8 +31,8 @@ std::vector<cv::Point2f> OrderPointsClockwise(const std::vector<cv::Point>& pts)
         return a.y < b.y;
     });
 
-    std::vector<cv::Point2f> leftMost(points.begin(), points.begin() + 2);
-    std::vector<cv::Point2f> rightMost(points.begin() + 2, points.end());
+    std::array<cv::Point2f, 2> leftMost{{points[0], points[1]}};
+    std::array<cv::Point2f, 2> rightMost{{points[2], points[3]}};
 
     std::sort(leftMost.begin(), leftMost.end(), [](const cv::Point2f& a, const cv::Point2f& b) {
         return a.y < b.y;
@@ -44,19 +46,18 @@ std::vector<cv::Point2f> OrderPointsClockwise(const std::vector<cv::Point>& pts)
     const cv::Point2f tr = rightMost[0];
     const cv::Point2f br = rightMost[1];
 
-    return {tl, tr, br, bl};
+    return {{tl, tr, br, bl}};
 }
 
-std::vector<cv::Point> ClipDetRes(
-    const std::vector<cv::Point2f>& points,
+std::array<cv::Point, 4> ClipDetRes(
+    const std::array<cv::Point2f, 4>& points,
     int imgHeight,
     int imgWidth) {
-    std::vector<cv::Point> out;
-    out.reserve(points.size());
-    for (const auto& p : points) {
-        out.emplace_back(
-            ClampInt(static_cast<int>(p.x), 0, imgWidth - 1),
-            ClampInt(static_cast<int>(p.y), 0, imgHeight - 1));
+    std::array<cv::Point, 4> out{};
+    for (int i = 0; i < 4; ++i) {
+        out[i] = cv::Point(
+            ClampInt(static_cast<int>(points[i].x), 0, imgWidth - 1),
+            ClampInt(static_cast<int>(points[i].y), 0, imgHeight - 1));
     }
     return out;
 }
@@ -76,12 +77,8 @@ std::vector<TextBox> FilterDetRes(
     filtered.reserve(textBoxes.size());
 
     for (const auto& textBox : textBoxes) {
-        if (textBox.boxPoints.size() != 4) {
-            continue;
-        }
-
-        const std::vector<cv::Point2f> ordered = OrderPointsClockwise(textBox.boxPoints);
-        const std::vector<cv::Point> clipped = ClipDetRes(ordered, imgHeight, imgWidth);
+		const std::array<cv::Point2f, 4> ordered = OrderPointsClockwise(textBox.boxPoints);
+		const std::array<cv::Point, 4> clipped = ClipDetRes(ordered, imgHeight, imgWidth);
 
         const int rectWidth = NormL2Int(clipped[0], clipped[1]);
         const int rectHeight = NormL2Int(clipped[0], clipped[3]);
@@ -149,16 +146,12 @@ struct BoxRect {
 BoxRect GetBoxRect(const TextBox& box) {
     BoxRect rect{};
 
-    if (box.boxPoints.empty()) {
-        return rect;
-    }
-
     int minX = box.boxPoints[0].x;
     int minY = box.boxPoints[0].y;
     int maxX = box.boxPoints[0].x;
     int maxY = box.boxPoints[0].y;
 
-    for (std::size_t i = 1; i < box.boxPoints.size(); ++i) {
+    for (int i = 1; i < 4; ++i) {
         minX = std::min(minX, box.boxPoints[i].x);
         minY = std::min(minY, box.boxPoints[i].y);
         maxX = std::max(maxX, box.boxPoints[i].x);
@@ -235,10 +228,12 @@ TextBox MergeTextBoxes(const std::vector<TextBox>& boxes) {
         score = std::max(score, boxes[i].score);
     }
 
-    merged.boxPoints.push_back(cv::Point(left, top));
-    merged.boxPoints.push_back(cv::Point(right, top));
-    merged.boxPoints.push_back(cv::Point(right, bottom));
-    merged.boxPoints.push_back(cv::Point(left, bottom));
+    merged.boxPoints = {{
+        cv::Point(left, top),
+        cv::Point(right, top),
+        cv::Point(right, bottom),
+        cv::Point(left, bottom)
+    }};
     merged.score = score;
     return merged;
 }
@@ -348,7 +343,7 @@ std::vector<TextBox> FindResultBoxes(
         const cv::RotatedRect minAreaRect = cv::minAreaRect(contours[i]);
 
         float shortSide = 0.0f;
-        const std::vector<cv::Point2f> minBoxes = GetMinBoxes(minAreaRect, shortSide);
+        const std::array<cv::Point2f, 4> minBoxes = GetMinBoxes(minAreaRect, shortSide);
         if (shortSide < kMinLongSide) {
             continue;
         }
@@ -365,32 +360,33 @@ std::vector<TextBox> FindResultBoxes(
             continue;
         }
 
-        const std::vector<cv::Point2f> clipMinBoxes = GetMinBoxes(clipRect, shortSide);
+        const std::array<cv::Point2f, 4> clipMinBoxes = GetMinBoxes(clipRect, shortSide);
         if (shortSide < kMinUnclipShortSide) {
             continue;
         }
 
-        std::vector<cv::Point> mappedPoints;
-        mappedPoints.reserve(4);
-        for (const cv::Point2f& point : clipMinBoxes) {
-            const int x = ClampInt(
-                RoundHalfToEven(
-                    point.x / static_cast<float>(predMat.cols) *
-                    static_cast<float>(scaleParam.srcWidth)),
-                0,
-                scaleParam.srcWidth);
+		std::array<cv::Point, 4> mappedPoints{};
+		for (int p = 0; p < 4; ++p) {
+			const cv::Point2f& point = clipMinBoxes[p];
 
-            const int y = ClampInt(
-                RoundHalfToEven(
-                    point.y / static_cast<float>(predMat.rows) *
-                    static_cast<float>(scaleParam.srcHeight)),
-                0,
-                scaleParam.srcHeight);
+			const int x = ClampInt(
+				RoundHalfToEven(
+					point.x / static_cast<float>(predMat.cols) *
+					static_cast<float>(scaleParam.srcWidth)),
+				0,
+				scaleParam.srcWidth);
 
-            mappedPoints.emplace_back(x, y);
-        }
+			const int y = ClampInt(
+				RoundHalfToEven(
+					point.y / static_cast<float>(predMat.rows) *
+					static_cast<float>(scaleParam.srcHeight)),
+				0,
+				scaleParam.srcHeight);
 
-        result.push_back(TextBox{mappedPoints, boxScore});
+			mappedPoints[p] = cv::Point(x, y);
+		}
+
+		result.push_back(TextBox{mappedPoints, boxScore});
     }
 
     result = FilterDetRes(
