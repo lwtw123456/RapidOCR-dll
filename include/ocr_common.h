@@ -26,13 +26,13 @@ ScaleParam GetDetScaleParam(const cv::Mat& src, float limitSideLen, const std::s
 cv::Mat ResizeBySideLimit(const cv::Mat& src, int minSideLen, int maxSideLen, float& scale);
 
 cv::Mat Rotate180(const cv::Mat& src);
-cv::Mat GetRotateCropImage(const cv::Mat& src, const std::vector<cv::Point>& box);
+cv::Mat GetRotateCropImage(const cv::Mat& src, const std::array<cv::Point, 4>& box);
 cv::Mat FitToSize(const cv::Mat& src, int dstWidth, int dstHeight);
 
-std::vector<cv::Point2f> GetMinBoxes(const cv::RotatedRect& boxRect, float& minSideLen);
-float BoxScoreFast(const std::vector<cv::Point2f>& boxes, const cv::Mat& pred);
+std::array<cv::Point2f, 4> GetMinBoxes(const cv::RotatedRect& boxRect, float& maxSideLen);
+float BoxScoreFast(const std::array<cv::Point2f, 4>& boxes, const cv::Mat& pred);
 float BoxScoreSlow(const std::vector<cv::Point>& contour, const cv::Mat& pred);
-cv::RotatedRect Unclip(const std::vector<cv::Point2f>& box, float unclipRatio);
+cv::RotatedRect Unclip(const std::array<cv::Point2f, 4>& box, float unclipRatio);
 
 std::vector<float> SubtractMeanNormalize(
     const cv::Mat& src,
