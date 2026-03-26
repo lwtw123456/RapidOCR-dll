@@ -85,6 +85,7 @@ your_app/
 ### 注意事项
 
 - 默认会在 DLL 同级目录查找 models/
+- 如果使用其它模型，请确保所用的 ONNX 识别模型包含字符字典 metadata
 - optionsJson 需为 UTF-8 编码
 - 图片路径接口使用 wchar_t
 - 返回 JSON 为 UTF-8 字符串
