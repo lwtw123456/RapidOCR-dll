@@ -1,8 +1,8 @@
 #include "ocr_engine.h"
 
 #include <algorithm>
+#include <string>
 #include <cmath>
-#include <sstream>
 
 #include <opencv2/imgproc.hpp>
 
@@ -91,15 +91,21 @@ OcrResult OcrEngine::DetectImpl(
             textLines[i].charScores});
     }
 
-    std::ostringstream combined;
-    for (const TextBlock& block : textBlocks) {
-        combined << block.text << '\n';
-    }
+	size_t totalLength = 0;
+	for (const auto& block : textBlocks) {
+		totalLength += block.text.length() + 1;
+	}
 
-    OcrResult result;
-    result.textBlocks = std::move(textBlocks);
-    result.combinedText = combined.str();
-    return result;
+	OcrResult result;
+	result.textBlocks = std::move(textBlocks);
+	result.combinedText.reserve(totalLength);
+
+	for (const auto& block : result.textBlocks) {
+		result.combinedText += block.text;
+		result.combinedText += '\n';
+	}
+
+	return result;
 }
 
 }  // namespace rapidocr
