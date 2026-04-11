@@ -77,9 +77,7 @@ your_app/
   ↓
 调用 OCR 接口
   ↓
-获取 JSON 结果
-  ↓
-（可选）调用 RapidOcrJsonGetLineText 从JSON中获取纯文本
+获取 OCR 结果
 ```
 
 ### 注意事项
@@ -88,7 +86,7 @@ your_app/
 - 如果使用其它模型，请确保所用的 ONNX 识别模型包含字符字典 metadata
 - optionsJson 需为 UTF-8 编码
 - 图片路径接口使用 wchar_t
-- 返回 JSON 为 UTF-8 字符串
+- 返回结果为 UTF-8 字符串
 - 调用示例见： `python/python_api.py`
 
 ------------------------------------------------------------------------
@@ -140,21 +138,7 @@ build_release.bat
 
 - `const char*`，UTF-8 JSON 字符串
 
-#### `RapidOcrJsonGetLineText`
-
-从 OCR 返回的 JSON 中提取纯文本，并按行拼接。
-
-参数：
-
-- `jsonBytes`：OCR 返回 JSON
-- `jsonBytesLength`：JSON 字节长度
-- `outTextLength`：输出文本长度
-
-返回：
-
-- `const unsigned char*`，UTF-8 文本字节
-
----
+------------------------------------------------------------------------
 
 ## optionsJson 参数说明
 
@@ -176,7 +160,8 @@ build_release.bat
   "unclip_ratio": 1.6,
   "use_dilation": true,
   "score_mode": "fast",
-  "merge_code_lines": false
+  "merge_code_lines": false,
+  "only_text": false
 }
 ```
 
