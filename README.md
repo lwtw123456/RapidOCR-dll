@@ -109,22 +109,23 @@ build_release.bat
 
 ------------------------------------------------------------------------
 
-### 接口说明
+## 接口说明
 
-#### `RapidOcrFromPathW`
+### `RapidOcrFromPathW`
 
 通过图片文件路径执行 OCR。
 
 参数：
 
-- `imagePath`：宽字符图片路径
+- `imagePath`：宽字符图片路径（`wchar_t*`）
 - `optionsJson`：UTF-8 编码 JSON 配置，可传 `NULL`
 
 返回：
 
-- `const char*`，UTF-8 JSON 字符串
+- 当 `only_text = false`（默认）时，返回 `const char*`，内容为 UTF-8 JSON 字符串
+- 当 `only_text = true` 时，返回 `const char*`，内容为 UTF-8 纯文本字符串（按行拼接）
 
-#### `RapidOcrFromBytes`
+### `RapidOcrFromBytes`
 
 通过内存中的图片字节执行 OCR。
 
@@ -136,7 +137,8 @@ build_release.bat
 
 返回：
 
-- `const char*`，UTF-8 JSON 字符串
+- 当 `only_text = false`（默认）时，返回 `const char*`，内容为 UTF-8 JSON 字符串
+- 当 `only_text = true` 时，返回 `const char*`，内容为 UTF-8 纯文本字符串（按行拼接）
 
 ------------------------------------------------------------------------
 
