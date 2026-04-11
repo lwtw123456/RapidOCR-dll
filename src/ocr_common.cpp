@@ -231,8 +231,7 @@ void DrawTextBoxes(cv::Mat& image, const std::vector<TextBox>& textBoxes, int th
 
 cv::Mat Rotate180(const cv::Mat& src) {
     cv::Mat out;
-    cv::flip(src, out, 0);
-    cv::flip(out, out, 1);
+    cv::rotate(src, out, cv::ROTATE_180);
     return out;
 }
 
