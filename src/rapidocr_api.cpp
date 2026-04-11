@@ -54,6 +54,7 @@ struct ApiOptions {
     bool useDilation;
     std::string scoreMode;
     bool mergeCodeLines;
+    bool onlyText;
 
     ApiOptions()
         : modelDir(),
@@ -68,7 +69,8 @@ struct ApiOptions {
           unclipRatio(1.6f),
           useDilation(true),
           scoreMode("fast"),
-          mergeCodeLines(false) {}
+          mergeCodeLines(false),
+          onlyText(false) {}
 };
 
 struct EngineHolder {
@@ -77,7 +79,6 @@ struct EngineHolder {
 };
 
 thread_local std::string g_lastJson;
-thread_local std::string g_lastLineText;
 
 static void AppendEscapedJson(std::string& out, const std::string& s) {
     out.push_back('"');
@@ -182,36 +183,29 @@ static std::string BuildSuccessString(const OcrResult& result) {
     return out;
 }
 
+static std::string BuildOnlyTextString(const OcrResult& result) {
+    std::string out;
+    bool first = true;
+    for (std::size_t i = 0; i < result.textBlocks.size(); ++i) {
+        const TextBlock& block = result.textBlocks[i];
+        if (block.text.empty()) {
+            continue;
+        }
+        if (!first) {
+            out.push_back('\n');
+        }
+        out.append(block.text);
+        first = false;
+    }
+    return out;
+}
+
 const char* ReturnExceptionJson(int code, const std::exception& ex) noexcept {
     return ReturnFallbackJson(code, ex.what());
 }
 
 const char* ReturnUnknownJson(int code, const char* message) noexcept {
     return ReturnFallbackJson(code, message);
-}
-
-const unsigned char* ReturnLineTextBytes(const std::string& text, int* outTextLength) noexcept {
-    try {
-        g_lastLineText = text;
-        if (outTextLength != NULL) {
-            *outTextLength = static_cast<int>(g_lastLineText.size());
-        }
-        return reinterpret_cast<const unsigned char*>(g_lastLineText.data());
-    } catch (...) {
-        g_lastLineText.clear();
-        if (outTextLength != NULL) {
-            *outTextLength = 0;
-        }
-        return reinterpret_cast<const unsigned char*>(g_lastLineText.data());
-    }
-}
-
-const unsigned char* ReturnEmptyLineText(int* outTextLength) noexcept {
-    g_lastLineText.clear();
-    if (outTextLength != NULL) {
-        *outTextLength = 0;
-    }
-    return reinterpret_cast<const unsigned char*>(g_lastLineText.data());
 }
 
 #ifdef _WIN32
@@ -433,10 +427,11 @@ ApiOptions ParseOptions(const char* optionsJson) {
     }
 
     std::string sv;
-    options.modelDir = NormalizeModelDir(ExtractJsonString(json, "model_dir", sv) ? sv : "");
-    options.useCls        = ExtractJsonBool(json, "use_cls",         options.useCls);
-    options.useDilation   = ExtractJsonBool(json, "use_dilation",    options.useDilation);
-    options.mergeCodeLines= ExtractJsonBool(json, "merge_code_lines",options.mergeCodeLines);
+    options.modelDir       = NormalizeModelDir(ExtractJsonString(json, "model_dir", sv) ? sv : "");
+    options.useCls         = ExtractJsonBool(json, "use_cls",         options.useCls);
+    options.useDilation    = ExtractJsonBool(json, "use_dilation",    options.useDilation);
+    options.mergeCodeLines = ExtractJsonBool(json, "merge_code_lines",options.mergeCodeLines);
+	options.onlyText       = ExtractJsonBool(json, "only_text",        options.onlyText);
 
     if (ExtractJsonNumber(json, "max_side_len",   sv)) options.maxSideLen    = std::max(1, ParseInt(sv, options.maxSideLen));
     if (ExtractJsonNumber(json, "min_side_len",   sv)) options.minSideLen    = std::max(1, ParseInt(sv, options.minSideLen));
@@ -492,64 +487,6 @@ std::vector<unsigned char> ReadFileBytesW(const wchar_t* path) {
         data.clear();
     }
     return data;
-}
-
-std::string JoinLineTextsFromJsonBytes(const char* jsonBytes, int jsonBytesLength) {
-    if (jsonBytes == NULL || jsonBytesLength <= 0) return std::string();
-    
-    const std::string json(jsonBytes, jsonBytes + static_cast<std::size_t>(jsonBytesLength));
-    
-    const std::size_t dataPos = json.find("\"data\"");
-    if (dataPos == std::string::npos) return std::string();
-
-    const std::string textKey = "\"text\"";
-    std::string output;
-    bool first = true;
-    
-    std::size_t search = dataPos;
-    while (search < json.size()) {
-        std::size_t kpos = json.find(textKey, search);
-        if (kpos == std::string::npos) break;
-
-        std::size_t pos = kpos + textKey.size();
-        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\r' || json[pos] == '\n')) ++pos;
-        
-        if (pos >= json.size() || json[pos] != ':') {
-            search = kpos + 1;
-            continue;
-        }
-        ++pos;
-
-        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\r' || json[pos] == '\n')) ++pos;
-        
-        if (pos >= json.size() || json[pos] != '"') {
-            search = kpos + 1;
-            continue;
-        }
-        ++pos;
-
-        std::string text;
-        while (pos < json.size() && json[pos] != '"') {
-            if (json[pos] == '\\' && pos + 1 < json.size()) {
-                char next = json[pos + 1];
-                if (next == '"') text.push_back('"');
-                else if (next == '\\') text.push_back('\\');
-                else if (next == 'n') text.push_back('\n');
-                else text.push_back(next);
-                pos += 2;
-            } else {
-                text.push_back(json[pos++]);
-            }
-        }
-
-        if (!text.empty()) {
-            if (!first) output.push_back('\n');
-            output.append(text);
-            first = false;
-        }
-        search = pos + 1;
-    }
-    return output;
 }
 
 class EngineManager {
@@ -620,7 +557,10 @@ const char* RunOcrBytesCore(const std::vector<unsigned char>& bytes, const char*
         result = holder->engine.Detect(image, runOptions);
     }
 
-    return ReturnJson(BuildSuccessString(result));
+    if (options.onlyText) {
+		return ReturnJson(BuildOnlyTextString(result));
+	}
+	return ReturnJson(BuildSuccessString(result));
 }
 
 const char* RunOcrBytesInternal(const std::vector<unsigned char>& bytes, const char* optionsJson) noexcept {
@@ -670,19 +610,6 @@ extern "C" RAPIDOCR_API const char* RAPIDOCR_CALL RapidOcrFromBytes(
         return ReturnExceptionJson(RC_INTERNAL_ERROR, ex);
     } catch (...) {
         return ReturnUnknownJson(RC_INTERNAL_ERROR, "unknown error");
-    }
-}
-
-extern "C" RAPIDOCR_API const unsigned char* RAPIDOCR_CALL RapidOcrJsonGetLineText(
-    const char* jsonBytes,
-    int jsonBytesLength,
-    int* outTextLength) noexcept {
-    try {
-        return ReturnLineTextBytes(
-            JoinLineTextsFromJsonBytes(jsonBytes, jsonBytesLength),
-            outTextLength);
-    } catch (...) {
-        return ReturnEmptyLineText(outTextLength);
     }
 }
 
