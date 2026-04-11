@@ -40,13 +40,6 @@ class OcrEngine:
             ]
             dll.RapidOcrFromBytes.restype = ctypes.c_char_p
 
-            dll.RapidOcrJsonGetLineText.argtypes = [
-                ctypes.c_char_p,
-                ctypes.c_int,
-                ctypes.POINTER(ctypes.c_int),
-            ]
-            dll.RapidOcrJsonGetLineText.restype = ctypes.POINTER(ctypes.c_ubyte)
-
             self._dll = dll
 
         except Exception:
@@ -71,7 +64,7 @@ class OcrEngine:
             return None
         return json.dumps(final_options, ensure_ascii=False).encode("utf-8")
 
-    def ocr(self, image, only_text=False, options=None):
+    def ocr(self, image, options=None):
         if image is None:
             return None
 
@@ -95,21 +88,13 @@ class OcrEngine:
                 )
             else:
                 return None
-
+                
             if not json_bytes:
                 return None
-
-            if only_text:
-                length = ctypes.c_int(0)
-                text_ptr = self._dll.RapidOcrJsonGetLineText(
-                    json_bytes,
-                    len(json_bytes),
-                    ctypes.byref(length),
-                )
-                if not text_ptr or length.value <= 0:
-                    return ""
-                return ctypes.string_at(text_ptr, length.value).decode("utf-8", errors="ignore")
-
+                
+            if options and options.get("only_text"):
+                return json_bytes.decode("utf-8")
+             
             return json.loads(json_bytes.decode("utf-8"))
 
         except Exception:
