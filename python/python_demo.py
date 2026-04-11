@@ -23,17 +23,16 @@ with open("Screenshot.png", "rb") as f:
 
 result = engine.ocr(image_bytes)  # 传入bytes
 if result:
+    print("传入图片字节数据识别成功:")
     print(result)
+else:
+    print("传入图片字节数据识别失败")
 
-# 3. 只获取纯文本（不包含位置信息）
-text_only = engine.ocr("Screenshot.png", only_text=True)
-if text_only:
-    print("纯文本结果:")
-    print(text_only)
 
-# 4. 带选项的识别
+# 3. 带选项的识别
 options = {
     "use_cls": False,   # 不使用方向分类
+    "only_text": True,  # 只获取纯文本   
 }
 
 result = engine.ocr("Screenshot.png", options=options)
