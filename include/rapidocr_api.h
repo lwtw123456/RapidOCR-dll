@@ -22,11 +22,6 @@ RAPIDOCR_API const char* RAPIDOCR_CALL RapidOcrFromBytes(
     int imageBytesLength,
     const char* optionsJson) noexcept;
 
-RAPIDOCR_API const unsigned char* RAPIDOCR_CALL RapidOcrJsonGetLineText(
-    const char* jsonBytes,
-    int jsonBytesLength,
-    int* outTextLength) noexcept;
-
 #ifdef __cplusplus
 }
 #endif
