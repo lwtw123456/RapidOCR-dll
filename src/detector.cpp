@@ -366,20 +366,21 @@ std::vector<TextBox> FindResultBoxes(
         }
 
 		std::array<cv::Point, 4> mappedPoints{};
+		const float scaleX =
+			static_cast<float>(scaleParam.srcWidth) / static_cast<float>(predMat.cols);
+		const float scaleY =
+			static_cast<float>(scaleParam.srcHeight) / static_cast<float>(predMat.rows);
+
 		for (int p = 0; p < 4; ++p) {
 			const cv::Point2f& point = clipMinBoxes[p];
 
 			const int x = ClampInt(
-				RoundHalfToEven(
-					point.x / static_cast<float>(predMat.cols) *
-					static_cast<float>(scaleParam.srcWidth)),
+				RoundHalfToEven(point.x * scaleX),
 				0,
 				scaleParam.srcWidth);
 
 			const int y = ClampInt(
-				RoundHalfToEven(
-					point.y / static_cast<float>(predMat.rows) *
-					static_cast<float>(scaleParam.srcHeight)),
+				RoundHalfToEven(point.y * scaleY),
 				0,
 				scaleParam.srcHeight);
 
@@ -490,10 +491,8 @@ std::vector<TextBox> Detector::Detect(const cv::Mat& src, const OcrRunOptions& o
     }
 
 	if (options.useDilation) {
-		cv::Mat dilated;
-		const cv::Mat element = cv::Mat::ones(2, 2, CV_8UC1);
-		cv::dilate(mask, dilated, element);
-		mask = dilated;
+		static const cv::Mat element = cv::Mat::ones(2, 2, CV_8UC1);
+		cv::dilate(mask, mask, element);
 	}
 
 	return FindResultBoxes(
