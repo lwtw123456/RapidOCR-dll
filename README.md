@@ -175,9 +175,9 @@ build_release.bat
 
 | 参数 | 类型 | 说明 | 默认值 |
 |------|------|------|--------|
-| `det_model_path` | `string` | 检测模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_det` 查找 |
-| `cls_model_path` | `string` | 分类模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_cls` 查找 |
-| `rec_model_path` | `string` | 识别模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_rec` 查找 |
+| `det_model_path` | `string` | 检测模型文件路径 |  `""`（空时自动在 DLL 同级 `models/` 下按 `_det` 查找） |
+| `cls_model_path` | `string` | 分类模型文件路径 |  `""`（空时自动在 DLL 同级 `models/` 下按 `_cls` 查找） |
+| `rec_model_path` | `string` | 识别模型文件路径 |  `""`（空时自动在 DLL 同级 `models/` 下按 `_rec` 查找） |
 | `use_cls` | `bool` | 是否启用方向分类 | `true` |
 
 可传绝对路径或相对路径，相对路径按 DLL 所在目录解析。
