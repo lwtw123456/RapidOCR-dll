@@ -38,6 +38,24 @@ void Classifier::ConfigureSessionOptions() {
     sessionOptions_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 }
 
+void Classifier::TryUpdateInputSizeFromModel() {
+    if (!session_) return;
+
+    auto typeInfo = session_->GetInputTypeInfo(0);
+    auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+    const auto shape = tensorInfo.GetShape();
+
+    if (shape.size() != 4) return;
+
+    int64_t h = shape[2];
+    int64_t w = shape[3];
+
+    if (h > 0 && w > 0) {
+        dstHeight_ = static_cast<int>(h);
+        dstWidth_ = static_cast<int>(w);
+    }
+}
+
 void Classifier::Initialize(const std::string& modelPath) {
     if (modelPath.empty()) {
         throw std::invalid_argument("classifier model path is empty");
@@ -51,6 +69,8 @@ void Classifier::Initialize(const std::string& modelPath) {
 #endif
     inputNames_ = GetInputNames(*session_);
     outputNames_ = GetOutputNames(*session_);
+
+    TryUpdateInputSizeFromModel();
 }
 
 void Classifier::ValidateReady() const {
@@ -82,7 +102,7 @@ cv::Mat Classifier::ResizeNormImg(const cv::Mat& img) const {
 
     const float* srcPtr = reinterpret_cast<const float*>(resized.data);
     const std::size_t srcStep = resized.step1();
-    
+
     for (int y = 0; y < imgH; ++y) {
         const float* srcRow = srcPtr + y * srcStep;
         for (int x = 0; x < resizedW; ++x) {
@@ -180,13 +200,13 @@ std::vector<AnglePrediction> Classifier::Predict(
 
     std::vector<float> widthList(partImages.size(), 0.0f);
     for (std::size_t i = 0; i < partImages.size(); ++i) {
-		if (partImages[i].empty() || partImages[i].rows <= 0) {
-			widthList[i] = 0.0f;
-		} else {
-			widthList[i] = static_cast<float>(partImages[i].cols) /
-						   static_cast<float>(partImages[i].rows);
-		}
-	}
+        if (partImages[i].empty() || partImages[i].rows <= 0) {
+            widthList[i] = 0.0f;
+        } else {
+            widthList[i] = static_cast<float>(partImages[i].cols) /
+                           static_cast<float>(partImages[i].rows);
+        }
+    }
 
     std::vector<int> indices(partImages.size());
     std::iota(indices.begin(), indices.end(), 0);
