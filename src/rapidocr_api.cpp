@@ -41,7 +41,12 @@ enum ResultCode {
 };
 
 struct ApiOptions {
-    std::string modelDir;
+    std::string detModelPath;
+    std::string clsModelPath;
+    std::string recModelPath;
+    std::string resolvedDetModelPath;
+    std::string resolvedClsModelPath;
+    std::string resolvedRecModelPath;
     bool useCls;
     int maxSideLen;
     int minSideLen;
@@ -57,7 +62,12 @@ struct ApiOptions {
     bool onlyText;
 
     ApiOptions()
-        : modelDir(),
+        : detModelPath(),
+          clsModelPath(),
+          recModelPath(),
+          resolvedDetModelPath(),
+          resolvedClsModelPath(),
+          resolvedRecModelPath(),
           useCls(true),
           maxSideLen(2000),
           minSideLen(30),
@@ -267,28 +277,11 @@ std::string GetDefaultModelDirUtf8() {
 }
 
 bool IsAbsolutePathUtf8(const std::string& path) {
-    if (path.size() >= 2 && path[1] == ':') {
-        return true;
+    namespace fs = std::filesystem;
+    if (path.empty()) {
+        return false;
     }
-    if (path.size() >= 1 && (path[0] == '\\' || path[0] == '/')) {
-        return true;
-    }
-    return false;
-}
-
-std::string NormalizeModelDir(const std::string& modelDir) {
-    if (modelDir.empty()) {
-        return GetDefaultModelDirUtf8();
-    }
-    if (IsAbsolutePathUtf8(modelDir)) {
-        return modelDir;
-    }
-#ifdef _WIN32
-    std::string base = WideToUtf8(GetModuleDirW());
-    return JoinPath(base, modelDir.c_str());
-#else
-    return modelDir;
-#endif
+    return fs::path(path).is_absolute();
 }
 
 std::string ToLowerCopy(const std::string& s) {
@@ -345,6 +338,29 @@ std::string FindModelByPattern(const std::string& modelDir, const std::string& k
     return matches[0];
 }
 
+std::string NormalizePathUtf8(const std::string& path) {
+    if (path.empty()) {
+        return std::string();
+    }
+    if (IsAbsolutePathUtf8(path)) {
+        return path;
+    }
+#ifdef _WIN32
+    std::string base = WideToUtf8(GetModuleDirW());
+    return JoinPath(base, path.c_str());
+#else
+    return path;
+#endif
+}
+
+std::string ResolveModelPath(
+    const std::string& explicitPath,
+    const char* keyword) {
+    if (!explicitPath.empty()) {
+        return NormalizePathUtf8(explicitPath);
+    }
+    return FindModelByPattern(GetDefaultModelDirUtf8(), keyword);
+}
 
 static bool ExtractJsonString(const std::string& json, const char* key, std::string& outValue) {
     std::string needle = std::string("\"") + key + "\"";
@@ -416,32 +432,31 @@ static float ParseFloat(const std::string& s, float defaultValue) {
 
 ApiOptions ParseOptions(const char* optionsJson) {
     ApiOptions options;
-    if (optionsJson == NULL || optionsJson[0] == '\0') {
-        options.modelDir = NormalizeModelDir("");
-        return options;
-    }
-    const std::string json(optionsJson);
-    if (json.find('{') == std::string::npos) {
-        options.modelDir = NormalizeModelDir("");
-        return options;
-    }
 
-    std::string sv;
-    options.modelDir       = NormalizeModelDir(ExtractJsonString(json, "model_dir", sv) ? sv : "");
-    options.useCls         = ExtractJsonBool(json, "use_cls",         options.useCls);
-    options.useDilation    = ExtractJsonBool(json, "use_dilation",    options.useDilation);
-    options.mergeCodeLines = ExtractJsonBool(json, "merge_code_lines",options.mergeCodeLines);
-	options.onlyText       = ExtractJsonBool(json, "only_text",        options.onlyText);
+    if (optionsJson != NULL && optionsJson[0] != '\0') {
+        const std::string json(optionsJson);
+        if (json.find('{') != std::string::npos) {
+            std::string sv;
+            if (ExtractJsonString(json, "det_model_path", sv)) options.detModelPath = sv;
+            if (ExtractJsonString(json, "cls_model_path", sv)) options.clsModelPath = sv;
+            if (ExtractJsonString(json, "rec_model_path", sv)) options.recModelPath = sv;
 
-    if (ExtractJsonNumber(json, "max_side_len",   sv)) options.maxSideLen    = std::max(1, ParseInt(sv, options.maxSideLen));
-    if (ExtractJsonNumber(json, "min_side_len",   sv)) options.minSideLen    = std::max(1, ParseInt(sv, options.minSideLen));
-    if (ExtractJsonNumber(json, "limit_side_len", sv)) options.limitSideLen  = ParseFloat(sv, options.limitSideLen);
-    if (ExtractJsonNumber(json, "thresh",         sv)) options.thresh        = ParseFloat(sv, options.thresh);
-    if (ExtractJsonNumber(json, "box_thresh",     sv)) options.boxThresh     = ParseFloat(sv, options.boxThresh);
-    if (ExtractJsonNumber(json, "max_candidates", sv)) options.maxCandidates = std::max(1, ParseInt(sv, options.maxCandidates));
-    if (ExtractJsonNumber(json, "unclip_ratio",   sv)) options.unclipRatio   = ParseFloat(sv, options.unclipRatio);
-    if (ExtractJsonString(json, "limit_type",     sv)) options.limitType     = sv;
-    if (ExtractJsonString(json, "score_mode",     sv)) options.scoreMode     = sv;
+            options.useCls         = ExtractJsonBool(json, "use_cls",          options.useCls);
+            options.useDilation    = ExtractJsonBool(json, "use_dilation",     options.useDilation);
+            options.mergeCodeLines = ExtractJsonBool(json, "merge_code_lines", options.mergeCodeLines);
+            options.onlyText       = ExtractJsonBool(json, "only_text",        options.onlyText);
+
+            if (ExtractJsonNumber(json, "max_side_len",   sv)) options.maxSideLen    = std::max(1, ParseInt(sv, options.maxSideLen));
+            if (ExtractJsonNumber(json, "min_side_len",   sv)) options.minSideLen    = std::max(1, ParseInt(sv, options.minSideLen));
+            if (ExtractJsonNumber(json, "limit_side_len", sv)) options.limitSideLen  = ParseFloat(sv, options.limitSideLen);
+            if (ExtractJsonNumber(json, "thresh",         sv)) options.thresh        = ParseFloat(sv, options.thresh);
+            if (ExtractJsonNumber(json, "box_thresh",     sv)) options.boxThresh     = ParseFloat(sv, options.boxThresh);
+            if (ExtractJsonNumber(json, "max_candidates", sv)) options.maxCandidates = std::max(1, ParseInt(sv, options.maxCandidates));
+            if (ExtractJsonNumber(json, "unclip_ratio",   sv)) options.unclipRatio   = ParseFloat(sv, options.unclipRatio);
+            if (ExtractJsonString(json, "limit_type",     sv)) options.limitType     = sv;
+            if (ExtractJsonString(json, "score_mode",     sv)) options.scoreMode     = sv;
+        }
+    }
 
     if (options.limitSideLen <= 0.0f)  options.limitSideLen = 736.0f;
     if (options.limitType != "min" && options.limitType != "max") options.limitType = "min";
@@ -450,6 +465,11 @@ ApiOptions ParseOptions(const char* optionsJson) {
     if (options.unclipRatio <= 0.0f)   options.unclipRatio = 1.6f;
     if (options.scoreMode != "fast" && options.scoreMode != "slow") options.scoreMode = "fast";
     if (options.maxSideLen < options.minSideLen) options.maxSideLen = options.minSideLen;
+
+    options.resolvedDetModelPath = ResolveModelPath(options.detModelPath, "_det");
+    options.resolvedClsModelPath = ResolveModelPath(options.clsModelPath, "_cls");
+    options.resolvedRecModelPath = ResolveModelPath(options.recModelPath, "_rec");
+
     return options;
 }
 
@@ -506,9 +526,9 @@ public:
 
 		std::shared_ptr<EngineHolder> holder(new EngineHolder());
 		OcrModelPaths modelPaths;
-		modelPaths.detectorPath = FindModelByPattern(options.modelDir, "_det");
-		modelPaths.classifierPath = FindModelByPattern(options.modelDir, "_cls");
-		modelPaths.recognizerPath = FindModelByPattern(options.modelDir, "_rec");
+		modelPaths.detectorPath   = options.resolvedDetModelPath;
+		modelPaths.classifierPath = options.resolvedClsModelPath;
+		modelPaths.recognizerPath = options.resolvedRecModelPath;
 
 		holder->engine.InitializeModels(modelPaths);
 		engines_[key] = holder;
@@ -516,9 +536,11 @@ public:
     }
 
 private:
-    static std::string BuildKey(const ApiOptions& options) {
-        return options.modelDir;
-    }
+	static std::string BuildKey(const ApiOptions& options) {
+		return options.resolvedDetModelPath + "\n" +
+			   options.resolvedClsModelPath + "\n" +
+			   options.resolvedRecModelPath;
+	}
 
     std::mutex mutex_;
     std::map<std::string, std::shared_ptr<EngineHolder> > engines_;
