@@ -9,7 +9,7 @@
 当前已适配：
 
 - ✅ PP-OCRv5 模型  
-- ✅ ONNXRuntime 1.24.3  
+- ✅ ONNXRuntime 1.24.4  
 - ✅ OpenCV 4.13.0  
 
 ## ✨ 特性
