@@ -2,7 +2,7 @@
 
 > 轻量级 OCR DLL 封装，基于最新 RapidOCR 核心实现
 
-由于 [RapidOcrOnnx](https://github.com/RapidAI/RapidOcrOnnx) 长期未更新，本项目基于 [RapidOCR](https://github.com/RapidAI/RapidOCR) 最新版本（v3.7.0）将核心逻辑重写为 **C++ 实现**，并在此基础上进行了性能优化。
+由于 [RapidOcrOnnx](https://github.com/RapidAI/RapidOcrOnnx) 长期未更新，本项目基于 [RapidOCR](https://github.com/RapidAI/RapidOCR) 最新版本（v3.8.1）将核心逻辑重写为 **C++ 实现**，并在此基础上进行了性能优化。
 
 项目以 **DLL 形式提供统一接口**，通过 JSON 进行参数输入与结果输出。
 
@@ -150,7 +150,9 @@ build_release.bat
 
 ```json
 {
-  "model_dir": "models",
+  "det_model_path": "",
+  "cls_model_path": "",
+  "rec_model_path": "",
   "use_cls": true,
   "max_side_len": 2000,
   "min_side_len": 30,
@@ -173,8 +175,12 @@ build_release.bat
 
 | 参数 | 类型 | 说明 | 默认值 |
 |------|------|------|--------|
-| `model_dir` | `string` | 模型目录路径 | `"models"` |
+| `det_model_path` | `string` | 检测模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_det` 查找 |
+| `cls_model_path` | `string` | 分类模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_cls` 查找 |
+| `rec_model_path` | `string` | 识别模型文件路径 | "" 未传时在 DLL 同级 `models/` 下按 `_rec` 查找 |
 | `use_cls` | `bool` | 是否启用方向分类 | `true` |
+
+可传绝对路径或相对路径，相对路径按 DLL 所在目录解析。
 
 ---
 
