@@ -24,14 +24,15 @@ public:
     Classifier& operator=(Classifier&&) noexcept = default;
 
     void Initialize(const std::string& modelPath);
-	std::vector<AnglePrediction> Predict(
-		const std::vector<cv::Mat>& partImages) const;
+    std::vector<AnglePrediction> Predict(
+        const std::vector<cv::Mat>& partImages) const;
 
     bool ShouldRotate180(const AnglePrediction& prediction) const;
 
 private:
     void ConfigureSessionOptions();
     void ValidateReady() const;
+    void TryUpdateInputSizeFromModel();
     cv::Mat ResizeNormImg(const cv::Mat& img) const;
     std::vector<AnglePrediction> PredictBatch(const std::vector<cv::Mat>& batchImages) const;
 
